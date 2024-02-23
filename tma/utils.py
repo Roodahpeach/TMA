@@ -24,10 +24,16 @@ class SmartDict:
             self.counter[index] = 0
         self.counter[index] += value
         self.is_array = True
-    def append(self, key, value):
-        if not (key in self.counter.keys()):
-            self.counter[key] = []
-        self.counter[key].append(value)
+    def append(self, key, value, no_duplicate = False):
+        if no_duplicate:
+            if not (key in self.counter.keys()):
+                self.counter[key] = []
+                self.counter[key].append(value)
+        else:
+            if not (key in self.counter.keys()):
+                self.counter[key] = []
+                    
+            self.counter[key].append(value)
     def to_file(self, save_path):
         if self.is_array:
             with open(save_path, "w") as f:

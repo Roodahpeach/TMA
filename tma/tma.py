@@ -21,6 +21,7 @@ class TorchModelAnalyzer:
         )  # child가 없는 leaf인 경우에만 param 체크
 
         forward_function_src = inspect.getsource(layer.forward)
+        init_function_src = inspect.getsource(layer.__init__)
 
         # 디버깅을 위해 일단 layer 인스턴스도 노드에 저장함
         cur_node = Node(
@@ -30,6 +31,7 @@ class TorchModelAnalyzer:
             layer_name_org=layer_name_org,
             layer_params=layer_params,
             forward_function_src=forward_function_src,
+            init_function_src=init_function_src,
         )
 
         for key, module in layer._modules.items():
@@ -47,6 +49,64 @@ class TorchModelAnalyzer:
                     f" - {node.layer_params}" if len(node.children) == 0 else ""
                 )
             print(f"{pre}{node.name}{layer_info}")
+
+    def save_model_modules_info(self, savepath):
+        # 모델 구조 입력
+        model_tree_list = []
+
+        for pre, fill, node in RenderTree(self.model_tree):
+            layer_info = f" - {node.layer_params}" if len(node.children) == 0 else ""
+            model_tree_list.append(f"{pre}{node.name}{layer_info}")
+
+        # 모델 코드 입력
+        dic = {}
+
+        # node 탐색
+        for pre, fill, node in RenderTree(self.model_tree):
+            # 노드가 없는 경우에만 데이터 추가
+            if not (node.layer_name_org in dic.keys()):
+                nodeinfo = {}
+                nodeinfo["name"] = node.name
+                nodeinfo["params"] = node.layer_params
+                nodeinfo["init_code"] = node.init_function_src
+                nodeinfo["forward_code"] = node.forward_function_src
+
+                dic[node.layer_name_org] = nodeinfo.copy()
+
+        # 노드 출력
+        with open(savepath, "w") as f:
+            # 모델 구조 출력
+            f.write("Model Tree \n\n")
+            for model_tree_line in model_tree_list:
+                f.write(str(model_tree_line))
+                f.write("\n")
+
+            # 모델 코드 출력
+            f.write("\n\nModel Codes \n\n")
+            for i, (key, value) in enumerate(dic.items()):
+                f.write(f"======================================")
+                f.write("\n")
+
+                f.write(f"module {i}")
+                f.write("\n")
+
+                f.write(f"Name : {value['name']}")
+                f.write("\n")
+
+                f.write(f"__init__() : ")
+                f.write("\n")
+                f.write(f"{str(value['init_code'])}")
+                f.write("\n")
+
+                f.write(f"forward() : ")
+                f.write("\n")
+                f.write(f"{str(value['forward_code'])}")
+                f.write("\n")
+
+                f.write(f"======================================")
+                f.write("\n")
+
+        return dic
 
     def __get_paramname_from_index(self, func, index):
         params = inspect.signature(func).parameters
